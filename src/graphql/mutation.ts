@@ -1,6 +1,6 @@
 import { Workbook } from 'exceljs'
 import { idArg, mutationField, nonNull, stringArg } from 'nexus'
-import { getSupplierColumnIndex } from '../utils/uploadBidsheetUtils'
+import { buildItemsWithBids, Item } from '../utils/uploadBidsheetUtils'
 
 export const uploadBidsheet = mutationField('uploadBidsheet', {
   type: 'Project',
@@ -31,25 +31,48 @@ export const uploadBidsheet = mutationField('uploadBidsheet', {
      * TODO: Add your code to parse the uploaded excel file and save it to the database.
      */
     // console.log({ filename, mimetype, workbook })
-    console.log('worksheet rowcount: ', worksheet.rowCount)
-    console.log('worksheet actualrowcount: ', worksheet.actualRowCount)
-    // console.log('worksheet columnkey?', worksheet.columns)
-    // console.log('worksheet columnkey?', worksheet.getColumnKey('0'))
 
-    let supplierColIdx = getSupplierColumnIndex(worksheet)
+    const items = buildItemsWithBids(worksheet, newProject.id)
 
-    console.log('supplier idx: ', supplierColIdx)
+    // So it turns out prisma doesn't support nested createMany... https://github.com/prisma/prisma/issues/5455
+    // Which means I'll have to iterate through every item and create as an individual operation...
 
-    const spliced = worksheet.spliceColumns(1, supplierColIdx)
+    const buildBidsQuery = (item: Item) => {
+      const bidsQuery = item.bids.map((bid) => ({
+        supplierName: bid.supplierName,
+        customBidProperties: {
+          createMany: {
+            data: [...bid.bidProperties],
+          },
+        },
+      }))
 
-    console.log('spliced: ', spliced)
-    console.log(
-      'worksheet.getRow',
-      worksheet.getRow(1).eachCell((cell, colNumber) => {
-        console.log('cell value: ', cell.value)
-        console.log('col number: ', colNumber)
-      }),
-    )
+      return bidsQuery
+    }
+
+    items.forEach(async (item, itemIndex) => {
+      await prisma.item.create({
+        data: {
+          name: item.name,
+          projectId: item.projectId,
+          customProperties: {
+            createMany: {
+              data: [...item.itemProperties],
+            },
+          },
+          bids: {
+            createMany: {
+              data: buildBidsQuery(item),
+            },
+          },
+        },
+      })
+    })
+
+    const itemsInserted = await prisma.item.findMany()
+    const customItemProperties = await prisma.customItemProperty.findMany()
+    const bids = await prisma.bid.findMany()
+    console.log('bids: ', bids)
 
     // for (let row of worksheet.getSheetValues()) {
     //   console.log('row here: ', row)

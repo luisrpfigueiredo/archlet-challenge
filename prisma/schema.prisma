@@ -28,7 +28,6 @@ model Item {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   name           String
-  quantity       String
   projectId      String
   project        Project @relation(fields: [projectId], references: [id])
   customProperties CustomItemProperty[]
@@ -47,10 +46,10 @@ model Bid {
   id             String       @id @default(uuid())
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  name           String
+  supplierName   String
   itemId         String
   item           Item @relation(fields: [itemId], references: [id])
-  customProperties CustomBidProperty[]
+  customBidProperties CustomBidProperty[]
 }
 
 model CustomBidProperty {
