@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  projects Project[]
+}
+
+model Project {
+  id             String       @id @default(uuid())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  items Item[]
+}
+
+model Item {
+  id             String       @id @default(uuid())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  name           String
+  quantity       String
+  projectId      String
+  project        Project @relation(fields: [projectId], references: [id])
+  customProperties CustomItemProperty[]
+  bids           Bid[]
+}
+
+model CustomItemProperty {
+  id             String @id @default(uuid())
+  name           String
+  value          String
+  itemId         String
+  item           Item @relation(fields: [itemId], references: [id])
+}
+
+model Bid {
+  id             String       @id @default(uuid())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  name           String
+  itemId         String
+  item           Item @relation(fields: [itemId], references: [id])
+  customProperties CustomBidProperty[]
+}
+
+model CustomBidProperty {
+  id             String @id @default(uuid())
+  name           String
+  value          String
+  bidId         String
+  bid           Bid @relation(fields: [bidId], references: [id])
+}

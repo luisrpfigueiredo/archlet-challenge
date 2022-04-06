@@ -1,0 +1,7 @@
+{
+  "query": "mutation uploadBidsheet($organizationId:ID!, $projectName:String!, $file:Upload!) {\n  uploadBidsheet(organizationId: $organizationId, projectName:$projectName, file: $file) { name }\n}",
+  "variables": {
+    "organizationId": "4b615c1e-42f2-4510-a494-90c9551a720c",
+    "projectName": "testproject"
+  }
+}
