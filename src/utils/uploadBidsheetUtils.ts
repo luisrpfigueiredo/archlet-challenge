@@ -1,4 +1,5 @@
 import { Worksheet } from 'exceljs'
+import { PrismaClient } from '@prisma/client'
 
 export interface Item {
   name: string
@@ -52,6 +53,7 @@ export const buildItemsWithBids = (
     worksheet,
     supplierColIdx,
   )
+
   const items: Item[] = []
 
   worksheet.getSheetValues().forEach((row, rowIndex) => {
@@ -61,8 +63,10 @@ export const buildItemsWithBids = (
       return value.name === row[1]
     })
 
+    const itemName = row[1]?.result || row[1]
+    if (!itemName) return
     const newItem: Item = {
-      name: row[1].result ? row[1].result : row[1],
+      name: itemName,
       projectId: newProjectId,
       itemProperties: [],
       bids: [],
@@ -103,4 +107,38 @@ export const buildItemsWithBids = (
   })
 
   return items
+}
+
+const buildBidsQuery = (item: Item) => {
+  const bidsQuery = item.bids.map((bid) => ({
+    supplierName: bid.supplierName,
+    customBidProperties: {
+      createMany: {
+        data: [...bid.bidProperties],
+      },
+    },
+  }))
+
+  return bidsQuery
+}
+
+export const saveItemsAndBids = async (items: Item[], prisma: PrismaClient) => {
+  // So it turns out prisma doesn't support nested createMany... https://github.com/prisma/prisma/issues/5455
+  // Which means I'll have to iterate through every item and create as an individual operation...
+  items.forEach(async (item) => {
+    await prisma.item.create({
+      data: {
+        name: item.name,
+        projectId: item.projectId,
+        customProperties: {
+          createMany: {
+            data: [...item.itemProperties],
+          },
+        },
+        bids: {
+          create: buildBidsQuery(item),
+        },
+      },
+    })
+  })
 }
