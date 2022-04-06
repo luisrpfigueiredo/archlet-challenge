@@ -1,6 +1,10 @@
 import { Workbook } from 'exceljs'
 import { idArg, mutationField, nonNull, stringArg } from 'nexus'
-import { getSupplierColumnIndex } from '../utils/uploadBidsheetUtils'
+import {
+  buildItemsWithBids,
+  Item,
+  saveItemsAndBids,
+} from '../utils/uploadBidsheetUtils'
 
 export const uploadBidsheet = mutationField('uploadBidsheet', {
   type: 'Project',
@@ -10,7 +14,7 @@ export const uploadBidsheet = mutationField('uploadBidsheet', {
     file: nonNull('Upload'),
   },
   resolve: async (_parent, args, { prisma }) => {
-    const { filename, mimetype, createReadStream } = await args.file
+    const { createReadStream } = await args.file
     const stream = createReadStream()
 
     const workbook = new Workbook()
@@ -27,33 +31,18 @@ export const uploadBidsheet = mutationField('uploadBidsheet', {
       },
     })
 
-    /**
-     * TODO: Add your code to parse the uploaded excel file and save it to the database.
-     */
-    // console.log({ filename, mimetype, workbook })
-    console.log('worksheet rowcount: ', worksheet.rowCount)
-    console.log('worksheet actualrowcount: ', worksheet.actualRowCount)
-    // console.log('worksheet columnkey?', worksheet.columns)
-    // console.log('worksheet columnkey?', worksheet.getColumnKey('0'))
+    // It would be awesome if this part worked. In theory this prunes useless rows - but excelJS is buggy
+    if (worksheet.actualRowCount < worksheet.rowCount) {
+      worksheet.eachRow((row, rowNumber) => {
+        if (!row.hasValues) {
+          worksheet.spliceRows(rowNumber, 1)
+        }
+      })
+    }
 
-    let supplierColIdx = getSupplierColumnIndex(worksheet)
+    const items = buildItemsWithBids(worksheet, newProject.id)
 
-    console.log('supplier idx: ', supplierColIdx)
-
-    const spliced = worksheet.spliceColumns(1, supplierColIdx)
-
-    console.log('spliced: ', spliced)
-    console.log(
-      'worksheet.getRow',
-      worksheet.getRow(1).eachCell((cell, colNumber) => {
-        console.log('cell value: ', cell.value)
-        console.log('col number: ', colNumber)
-      }),
-    )
-
-    // for (let row of worksheet.getSheetValues()) {
-    //   console.log('row here: ', row)
-    // }
+    await saveItemsAndBids(items, prisma)
 
     return newProject
   },
