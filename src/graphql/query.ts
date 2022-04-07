@@ -5,7 +5,7 @@ export const Query = objectType({
   definition(t) {
     t.nonNull.list.nonNull.field('organizations', {
       type: 'Organization',
-      resolve: async (_parent, _args, context) => {
+      resolve: (_parent, _args, context) => {
         return context.prisma.organization.findMany()
       },
     })
